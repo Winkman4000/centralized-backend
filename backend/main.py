@@ -28,10 +28,16 @@ app.add_middleware(
 )
 
 # Models for API
+class TokenBank(BaseModel):
+    id: Optional[int] = None
+    name: str
+    description: Optional[str] = None
+
 class Token(BaseModel):
     id: Optional[int] = None
+    bank_id: int
     value: str
-    category: str = "general"
+    token_id: Optional[int] = None
     
 class Layer(BaseModel):
     id: Optional[int] = None
@@ -72,13 +78,26 @@ def init_db():
     conn = sqlite3.connect('nn_backend.db')
     cursor = conn.cursor()
     
+    # Token banks table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS token_banks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     # Tokens table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tokens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bank_id INTEGER NOT NULL,
             value TEXT NOT NULL,
-            category TEXT DEFAULT 'general',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            token_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (bank_id) REFERENCES token_banks (id) ON DELETE CASCADE,
+            UNIQUE(bank_id, token_id)
         )
     ''')
     
@@ -172,32 +191,152 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+# Token bank management endpoints
+@app.post("/api/token-banks")
+async def create_token_bank(bank: TokenBank):
+    conn = sqlite3.connect('nn_backend.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO token_banks (name, description) VALUES (?, ?)",
+            (bank.name, bank.description)
+        )
+        bank_id = cursor.lastrowid
+        conn.commit()
+        
+        await manager.broadcast({
+            "type": "bank_created",
+            "bank": {"id": bank_id, "name": bank.name, "description": bank.description}
+        })
+        
+        return {"id": bank_id, "message": "Token bank created successfully"}
+    except sqlite3.IntegrityError:
+        return {"error": "Bank name already exists"}
+    finally:
+        conn.close()
+
+@app.get("/api/token-banks")
+async def get_token_banks():
+    conn = sqlite3.connect('nn_backend.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, description FROM token_banks ORDER BY name")
+    banks = [{"id": row[0], "name": row[1], "description": row[2]} for row in cursor.fetchall()]
+    conn.close()
+    return banks
+
+@app.delete("/api/token-banks/{bank_id}")
+async def delete_token_bank(bank_id: int):
+    conn = sqlite3.connect('nn_backend.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM token_banks WHERE id = ?", (bank_id,))
+    conn.commit()
+    conn.close()
+    
+    await manager.broadcast({
+        "type": "bank_deleted",
+        "bank_id": bank_id
+    })
+    
+    return {"message": "Token bank deleted successfully"}
+
 # Token management endpoints
 @app.post("/api/tokens")
 async def create_token(token: Token):
     conn = sqlite3.connect('nn_backend.db')
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO tokens (value, category) VALUES (?, ?)",
-        (token.value, token.category)
-    )
-    token_id = cursor.lastrowid
+    
+    # Auto-assign token_id if not provided
+    if token.token_id is None:
+        cursor.execute("SELECT MAX(token_id) FROM tokens WHERE bank_id = ?", (token.bank_id,))
+        max_id = cursor.fetchone()[0]
+        token.token_id = (max_id or 0) + 1
+    
+    try:
+        cursor.execute(
+            "INSERT INTO tokens (bank_id, value, token_id) VALUES (?, ?, ?)",
+            (token.bank_id, token.value, token.token_id)
+        )
+        db_token_id = cursor.lastrowid
+        conn.commit()
+        
+        await manager.broadcast({
+            "type": "token_created",
+            "token": {"id": db_token_id, "bank_id": token.bank_id, "value": token.value, "token_id": token.token_id}
+        })
+        
+        return {"id": db_token_id, "message": "Token created successfully"}
+    except sqlite3.IntegrityError:
+        return {"error": "Token ID already exists in this bank"}
+    finally:
+        conn.close()
+
+@app.post("/api/tokens/bulk")
+async def create_bulk_tokens(request: dict):
+    bank_id = request["bank_id"]
+    tokens = request["tokens"]
+    
+    conn = sqlite3.connect('nn_backend.db')
+    cursor = conn.cursor()
+    
+    # Get next available token_id
+    cursor.execute("SELECT MAX(token_id) FROM tokens WHERE bank_id = ?", (bank_id,))
+    max_id = cursor.fetchone()[0] or 0
+    
+    created_tokens = []
+    for i, token_value in enumerate(tokens):
+        token_id = max_id + i + 1
+        try:
+            cursor.execute(
+                "INSERT INTO tokens (bank_id, value, token_id) VALUES (?, ?, ?)",
+                (bank_id, token_value, token_id)
+            )
+            created_tokens.append({
+                "id": cursor.lastrowid,
+                "bank_id": bank_id,
+                "value": token_value,
+                "token_id": token_id
+            })
+        except sqlite3.IntegrityError:
+            continue
+    
     conn.commit()
     conn.close()
     
     await manager.broadcast({
-        "type": "token_created",
-        "token": {"id": token_id, "value": token.value, "category": token.category}
+        "type": "tokens_bulk_created",
+        "tokens": created_tokens
     })
     
-    return {"id": token_id, "message": "Token created successfully"}
+    return {"created": len(created_tokens), "message": f"Created {len(created_tokens)} tokens"}
 
 @app.get("/api/tokens")
-async def get_tokens():
+async def get_tokens(bank_id: Optional[int] = None):
     conn = sqlite3.connect('nn_backend.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT id, value, category FROM tokens ORDER BY category, value")
-    tokens = [{"id": row[0], "value": row[1], "category": row[2]} for row in cursor.fetchall()]
+    
+    if bank_id:
+        cursor.execute("""
+            SELECT t.id, t.bank_id, t.value, t.token_id, b.name as bank_name 
+            FROM tokens t 
+            JOIN token_banks b ON t.bank_id = b.id 
+            WHERE t.bank_id = ? 
+            ORDER BY t.token_id
+        """, (bank_id,))
+    else:
+        cursor.execute("""
+            SELECT t.id, t.bank_id, t.value, t.token_id, b.name as bank_name 
+            FROM tokens t 
+            JOIN token_banks b ON t.bank_id = b.id 
+            ORDER BY b.name, t.token_id
+        """)
+    
+    tokens = [{
+        "id": row[0],
+        "bank_id": row[1],
+        "value": row[2],
+        "token_id": row[3],
+        "bank_name": row[4]
+    } for row in cursor.fetchall()]
     conn.close()
     return tokens
 

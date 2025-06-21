@@ -7,43 +7,47 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .drag-over { border: 2px dashed #3b82f6; background-color: #eff6ff; }
+        .drag-over { border: 2px dashed #3b82f6; background-color: #1e3a8a; }
         .log-hidden { display: none; }
         .sortable-item { cursor: move; }
-        .sortable-item:hover { background-color: #f3f4f6; }
+        .sortable-item:hover { background-color: #374151; }
         .weight-cell { font-family: monospace; font-size: 0.75rem; }
         .dropdown-content { max-height: 200px; overflow-y: auto; }
+        .dark-input { background-color: #374151; border-color: #4b5563; color: #e5e7eb; }
+        .dark-input:focus { border-color: #3b82f6; background-color: #4b5563; }
+        .dark-select { background-color: #374151; border-color: #4b5563; color: #e5e7eb; }
+        .dark-bg { background-color: #374151; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-900 min-h-screen">
     <div class="container mx-auto px-4 py-6">
         <!-- Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">
-                <i class="fas fa-brain mr-2 text-blue-600"></i>
+        <div class="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-100 mb-2">
+                <i class="fas fa-brain mr-2 text-blue-400"></i>
                 Centralized Neural Network Backend
             </h1>
-            <p class="text-gray-600">Build, train, and monitor neural networks from scratch</p>
+            <p class="text-gray-300">Build, train, and monitor neural networks from scratch</p>
         </div>
 
         <!-- Main Content Tabs -->
-        <div class="bg-white rounded-lg shadow-md">
+        <div class="bg-gray-800 rounded-lg shadow-md">
             <!-- Tab Navigation -->
-            <div class="border-b border-gray-200">
+            <div class="border-b border-gray-600">
                 <nav class="flex space-x-8 px-6">
-                    <button class="tab-btn py-4 px-2 border-b-2 border-blue-500 text-blue-600 font-medium" data-tab="tokens">
+                    <button class="tab-btn py-4 px-2 border-b-2 border-blue-400 text-blue-400 font-medium" data-tab="tokens">
                         <i class="fas fa-tags mr-2"></i>Tokens
                     </button>
-                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="architecture">
+                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200" data-tab="architecture">
                         <i class="fas fa-layer-group mr-2"></i>Architecture
                     </button>
-                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="datasets">
+                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200" data-tab="datasets">
                         <i class="fas fa-database mr-2"></i>Datasets
                     </button>
-                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="monitoring">
+                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200" data-tab="monitoring">
                         <i class="fas fa-chart-line mr-2"></i>Monitoring
                     </button>
-                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="logs">
+                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200" data-tab="logs">
                         <i class="fas fa-terminal mr-2"></i>Logs
                     </button>
                 </nav>
@@ -53,51 +57,94 @@
             <div class="p-6">
                 <!-- Tokens Tab -->
                 <div id="tokens-tab" class="tab-content">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Token Input -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Add Tokens</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Bank Management -->
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Token Banks</h3>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Token Value</label>
-                                    <input type="text" id="token-input" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter token value">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Bank Name</label>
+                                    <input type="text" id="bank-name-input" class="w-full dark-input rounded-md px-3 py-2" placeholder="e.g., GPT Tokens, Custom Vocab">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                                    <select id="token-category" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="general">General</option>
-                                        <option value="special">Special</option>
-                                        <option value="numeric">Numeric</option>
-                                        <option value="alphabetic">Alphabetic</option>
-                                        <option value="punctuation">Punctuation</option>
-                                    </select>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                                    <textarea id="bank-description" class="w-full dark-input rounded-md px-3 py-2 h-20" placeholder="Describe this token bank..."></textarea>
                                 </div>
-                                <button id="add-token-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
-                                    <i class="fas fa-plus mr-2"></i>Add Token
+                                <button id="create-bank-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>Create Bank
                                 </button>
+                            </div>
+                            
+                            <!-- Banks List -->
+                            <div class="mt-6">
+                                <h4 class="text-md font-semibold mb-3 text-gray-200">Your Banks</h4>
+                                <div id="banks-list" class="space-y-2 max-h-64 overflow-y-auto">
+                                    <!-- Banks will be populated here -->
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Token Storage -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Token Storage</h3>
-                            <div class="space-y-3">
-                                <div class="flex items-center space-x-2">
-                                    <label class="block text-sm font-medium text-gray-700">Filter by Category:</label>
-                                    <select id="token-filter" class="border border-gray-300 rounded-md px-2 py-1 text-sm">
-                                        <option value="all">All Categories</option>
-                                        <option value="general">General</option>
-                                        <option value="special">Special</option>
-                                        <option value="numeric">Numeric</option>
-                                        <option value="alphabetic">Alphabetic</option>
-                                        <option value="punctuation">Punctuation</option>
+                        <!-- Token Management -->
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Add Tokens</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Select Bank</label>
+                                    <select id="selected-bank" class="w-full dark-select rounded-md px-3 py-2">
+                                        <option value="">Select a bank first</option>
                                     </select>
                                 </div>
-                                <div id="tokens-container" class="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-2 dropdown-content">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Token Value</label>
+                                    <input type="text" id="token-input" class="w-full dark-input rounded-md px-3 py-2" placeholder="Enter token value">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Token ID (optional)</label>
+                                    <input type="number" id="token-id" class="w-full dark-input rounded-md px-3 py-2" placeholder="Auto-assigned if empty">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button id="add-token-btn" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>Add Token
+                                    </button>
+                                    <button id="bulk-add-btn" class="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
+                                        <i class="fas fa-upload mr-2"></i>Bulk Add
+                                    </button>
+                                </div>
+                                
+                                <!-- Bulk Add Modal -->
+                                <div id="bulk-modal" class="hidden mt-4 p-3 border border-gray-600 rounded-md">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Paste tokens (one per line)</label>
+                                    <textarea id="bulk-tokens" class="w-full dark-input rounded-md px-3 py-2 h-32" placeholder="token1&#10;token2&#10;token3"></textarea>
+                                    <div class="flex gap-2 mt-2">
+                                        <button id="process-bulk-btn" class="bg-green-600 text-white py-1 px-3 rounded text-sm hover:bg-green-700">Process</button>
+                                        <button id="cancel-bulk-btn" class="bg-gray-600 text-white py-1 px-3 rounded text-sm hover:bg-gray-700">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Token Browser -->
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Token Browser</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center space-x-2">
+                                    <label class="block text-sm font-medium text-gray-300">View Bank:</label>
+                                    <select id="bank-filter" class="dark-select rounded-md px-2 py-1 text-sm">
+                                        <option value="all">All Banks</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" id="token-search" class="flex-1 dark-input rounded-md px-2 py-1 text-sm" placeholder="Search tokens...">
+                                    <button id="search-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                                <div id="tokens-container" class="max-h-80 overflow-y-auto border border-gray-600 rounded-md p-2">
                                     <!-- Tokens will be populated here -->
                                 </div>
-                                <div class="text-sm text-gray-500">
-                                    Total tokens: <span id="token-count">0</span>
+                                <div class="flex justify-between text-sm text-gray-400">
+                                    <span>Total tokens: <span id="token-count">0</span></span>
+                                    <span>Selected bank: <span id="selected-bank-name">None</span></span>
                                 </div>
                             </div>
                         </div>
@@ -108,16 +155,16 @@
                 <div id="architecture-tab" class="tab-content hidden">
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <!-- Layer Configuration -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Layer Configuration</h3>
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Layer Configuration</h3>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Layer Name</label>
-                                    <input type="text" id="layer-name" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., Hidden Layer 1">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Layer Name</label>
+                                    <input type="text" id="layer-name" class="w-full dark-input rounded-md px-3 py-2" placeholder="e.g., Hidden Layer 1">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Layer Type</label>
-                                    <select id="layer-type" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Layer Type</label>
+                                    <select id="layer-type" class="w-full dark-select rounded-md px-3 py-2">
                                         <option value="linear">Linear/Dense</option>
                                         <option value="conv1d">Conv1D</option>
                                         <option value="lstm">LSTM</option>
@@ -127,17 +174,17 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Input Size</label>
-                                        <input type="number" id="layer-input-size" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="128">
+                                        <label class="block text-sm font-medium text-gray-300 mb-2">Input Size</label>
+                                        <input type="number" id="layer-input-size" class="w-full dark-input rounded-md px-3 py-2" placeholder="128">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Output Size</label>
-                                        <input type="number" id="layer-output-size" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="64">
+                                        <label class="block text-sm font-medium text-gray-300 mb-2">Output Size</label>
+                                        <input type="number" id="layer-output-size" class="w-full dark-input rounded-md px-3 py-2" placeholder="64">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Activation</label>
-                                    <select id="layer-activation" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Activation</label>
+                                    <select id="layer-activation" class="w-full dark-select rounded-md px-3 py-2">
                                         <option value="relu">ReLU</option>
                                         <option value="sigmoid">Sigmoid</option>
                                         <option value="tanh">Tanh</option>
@@ -152,28 +199,28 @@
                         </div>
 
                         <!-- Layer Order Control -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Layer Order Control</h3>
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Layer Order Control</h3>
                             <div id="layers-list" class="space-y-2 max-h-96 overflow-y-auto">
                                 <!-- Layers will be populated here -->
                             </div>
                             <div class="mt-4">
-                                <h4 class="text-md font-semibold mb-2">Head Configuration</h4>
+                                <h4 class="text-md font-semibold mb-2 text-gray-200">Head Configuration</h4>
                                 <div class="space-y-2">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Head Name</label>
-                                        <input type="text" id="head-name" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm" placeholder="e.g., Classification Head">
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">Head Name</label>
+                                        <input type="text" id="head-name" class="w-full dark-input rounded-md px-2 py-1 text-sm" placeholder="e.g., Classification Head">
                                     </div>
                                     <div class="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Attach to Layer</label>
-                                            <select id="head-layer" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">Attach to Layer</label>
+                                            <select id="head-layer" class="w-full dark-select rounded-md px-2 py-1 text-sm">
                                                 <option value="">Select Layer</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Head Type</label>
-                                            <select id="head-type" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">Head Type</label>
+                                            <select id="head-type" class="w-full dark-select rounded-md px-2 py-1 text-sm">
                                                 <option value="classification">Classification</option>
                                                 <option value="regression">Regression</option>
                                                 <option value="generation">Generation</option>
@@ -181,8 +228,8 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Loss Function</label>
-                                        <select id="head-loss" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">Loss Function</label>
+                                        <select id="head-loss" class="w-full dark-select rounded-md px-2 py-1 text-sm">
                                             <option value="mse">Mean Squared Error</option>
                                             <option value="cross_entropy">Cross Entropy</option>
                                             <option value="bce">Binary Cross Entropy</option>
@@ -197,8 +244,8 @@
                         </div>
 
                         <!-- Heads Management -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Heads Management</h3>
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Heads Management</h3>
                             <div id="heads-list" class="space-y-2 max-h-96 overflow-y-auto">
                                 <!-- Heads will be populated here -->
                             </div>
@@ -215,16 +262,16 @@
                 <div id="datasets-tab" class="tab-content hidden">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <!-- Dataset Creator -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Create Dataset</h3>
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Create Dataset</h3>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Dataset Name</label>
-                                    <input type="text" id="dataset-name" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="My Dataset">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Dataset Name</label>
+                                    <input type="text" id="dataset-name" class="w-full dark-input rounded-md px-3 py-2" placeholder="My Dataset">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Dataset Type</label>
-                                    <select id="dataset-type" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Dataset Type</label>
+                                    <select id="dataset-type" class="w-full dark-select rounded-md px-3 py-2">
                                         <option value="binary_classification">Binary Classification</option>
                                         <option value="multi_classification">Multi Classification</option>
                                         <option value="qa">Question & Answer</option>
@@ -246,8 +293,8 @@
                         </div>
 
                         <!-- Dataset Manager -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Dataset Manager</h3>
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Dataset Manager</h3>
                             <div id="datasets-list" class="space-y-3 max-h-96 overflow-y-auto">
                                 <!-- Datasets will be populated here -->
                             </div>
@@ -259,19 +306,19 @@
                 <div id="monitoring-tab" class="tab-content hidden">
                     <div class="space-y-6">
                         <!-- Model Status -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold mb-4">Model Status</h3>
+                        <div class="dark-bg p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-100">Model Status</h3>
                             <div id="model-status" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <!-- Model status cards will be populated here -->
                             </div>
                         </div>
 
                         <!-- Weights Monitor -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="dark-bg p-4 rounded-lg">
                             <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-lg font-semibold">Weight Sheet</h3>
+                                <h3 class="text-lg font-semibold text-gray-100">Weight Sheet</h3>
                                 <div class="space-x-2">
-                                    <select id="model-select" class="border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                    <select id="model-select" class="dark-select rounded-md px-2 py-1 text-sm">
                                         <option value="">Select Model</option>
                                     </select>
                                     <button id="refresh-weights-btn" class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm">
@@ -280,15 +327,15 @@
                                 </div>
                             </div>
                             <div id="weights-container" class="overflow-x-auto">
-                                <table class="min-w-full bg-white border border-gray-200 rounded-md">
-                                    <thead class="bg-gray-100">
+                                <table class="min-w-full bg-gray-700 border border-gray-600 rounded-md">
+                                    <thead class="bg-gray-600">
                                         <tr>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Parameter</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Shape</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Mean</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Std</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Min</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Max</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-200">Parameter</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-200">Shape</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-200">Mean</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-200">Std</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-200">Min</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-200">Max</th>
                                         </tr>
                                     </thead>
                                     <tbody id="weights-table-body">
@@ -304,14 +351,14 @@
                 <div id="logs-tab" class="tab-content hidden">
                     <div class="space-y-4">
                         <!-- Log Controls -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="dark-bg p-4 rounded-lg">
                             <div class="flex justify-between items-center">
-                                <h3 class="text-lg font-semibold">Training Logs</h3>
+                                <h3 class="text-lg font-semibold text-gray-100">Training Logs</h3>
                                 <div class="space-x-2">
                                     <button id="toggle-logs-btn" class="bg-yellow-600 text-white px-3 py-1 rounded-md hover:bg-yellow-700 text-sm">
                                         <i class="fas fa-eye-slash mr-1"></i>Hide Spammy
                                     </button>
-                                    <select id="log-filter" class="border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                    <select id="log-filter" class="dark-select rounded-md px-2 py-1 text-sm">
                                         <option value="">All Types</option>
                                         <option value="info">Info</option>
                                         <option value="warning">Warning</option>

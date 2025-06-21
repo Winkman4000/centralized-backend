@@ -2,7 +2,9 @@ class NeuralNetworkBackend {
     constructor() {
         this.baseUrl = 'http://localhost:8000';
         this.websocket = null;
+        this.tokenBanks = [];
         this.tokens = [];
+        this.selectedBank = null;
         this.layers = [];
         this.heads = [];
         this.datasets = [];
@@ -44,10 +46,27 @@ class NeuralNetworkBackend {
 
     handleWebSocketMessage(data) {
         switch(data.type) {
+            case 'bank_created':
+                this.tokenBanks.push(data.bank);
+                this.renderBanks();
+                this.updateBankSelectors();
+                this.addLog('info', `Token bank created: ${data.bank.name}`);
+                break;
+            case 'bank_deleted':
+                this.tokenBanks = this.tokenBanks.filter(b => b.id !== data.bank_id);
+                this.renderBanks();
+                this.updateBankSelectors();
+                this.addLog('info', `Token bank deleted: ID ${data.bank_id}`);
+                break;
             case 'token_created':
                 this.tokens.push(data.token);
                 this.renderTokens();
-                this.addLog('info', `Token created: ${data.token.value}`);
+                this.addLog('info', `Token created: ${data.token.value} in bank ${data.token.bank_id}`);
+                break;
+            case 'tokens_bulk_created':
+                this.tokens.push(...data.tokens);
+                this.renderTokens();
+                this.addLog('info', `Bulk created ${data.tokens.length} tokens`);
                 break;
             case 'token_deleted':
                 this.tokens = this.tokens.filter(t => t.id !== data.token_id);
@@ -76,12 +95,23 @@ class NeuralNetworkBackend {
     }
 
     setupEventListeners() {
+        // Token bank management
+        document.getElementById('create-bank-btn').addEventListener('click', () => this.createBank());
+        document.getElementById('bank-name-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.createBank();
+        });
+        
         // Token management
         document.getElementById('add-token-btn').addEventListener('click', () => this.addToken());
         document.getElementById('token-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addToken();
         });
-        document.getElementById('token-filter').addEventListener('change', () => this.renderTokens());
+        document.getElementById('bulk-add-btn').addEventListener('click', () => this.toggleBulkModal());
+        document.getElementById('process-bulk-btn').addEventListener('click', () => this.processBulkTokens());
+        document.getElementById('cancel-bulk-btn').addEventListener('click', () => this.toggleBulkModal());
+        document.getElementById('bank-filter').addEventListener('change', () => this.renderTokens());
+        document.getElementById('token-search').addEventListener('input', () => this.renderTokens());
+        document.getElementById('search-btn').addEventListener('click', () => this.renderTokens());
 
         // Layer management
         document.getElementById('add-layer-btn').addEventListener('click', () => this.addLayer());
@@ -116,11 +146,11 @@ class NeuralNetworkBackend {
                 
                 // Update button styles
                 tabButtons.forEach(btn => {
-                    btn.classList.remove('border-blue-500', 'text-blue-600');
-                    btn.classList.add('border-transparent', 'text-gray-500');
+                    btn.classList.remove('border-blue-400', 'text-blue-400');
+                    btn.classList.add('border-transparent', 'text-gray-400');
                 });
-                button.classList.remove('border-transparent', 'text-gray-500');
-                button.classList.add('border-blue-500', 'text-blue-600');
+                button.classList.remove('border-transparent', 'text-gray-400');
+                button.classList.add('border-blue-400', 'text-blue-400');
                 
                 // Show/hide content
                 tabContents.forEach(content => {
@@ -133,6 +163,7 @@ class NeuralNetworkBackend {
 
     async loadInitialData() {
         await Promise.all([
+            this.loadTokenBanks(),
             this.loadTokens(),
             this.loadLayers(),
             this.loadHeads(),
@@ -141,26 +172,180 @@ class NeuralNetworkBackend {
         ]);
     }
 
-    // Token Management
-    async addToken() {
-        const value = document.getElementById('token-input').value.trim();
-        const category = document.getElementById('token-category').value;
+    // Token Bank Management
+    async createBank() {
+        const name = document.getElementById('bank-name-input').value.trim();
+        const description = document.getElementById('bank-description').value.trim();
         
-        if (!value) return;
+        if (!name) return;
         
         try {
-            const response = await fetch(`${this.baseUrl}/api/tokens`, {
+            const response = await fetch(`${this.baseUrl}/api/token-banks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ value, category })
+                body: JSON.stringify({ name, description })
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                document.getElementById('bank-name-input').value = '';
+                document.getElementById('bank-description').value = '';
+                // Bank will be added via WebSocket
+            } else {
+                this.addLog('error', result.error || 'Failed to create bank');
+            }
+        } catch (error) {
+            this.addLog('error', `Failed to create bank: ${error.message}`);
+        }
+    }
+
+    async loadTokenBanks() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/token-banks`);
+            this.tokenBanks = await response.json();
+            this.renderBanks();
+            this.updateBankSelectors();
+        } catch (error) {
+            this.addLog('error', `Failed to load token banks: ${error.message}`);
+        }
+    }
+
+    renderBanks() {
+        const container = document.getElementById('banks-list');
+        
+        container.innerHTML = this.tokenBanks.map(bank => `
+            <div class="p-3 bg-gray-600 rounded border border-gray-500 hover:bg-gray-500 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <h5 class="font-semibold text-gray-100">${bank.name}</h5>
+                        <p class="text-xs text-gray-300 mt-1">${bank.description || 'No description'}</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="app.selectBank(${bank.id})" class="text-blue-400 hover:text-blue-300 text-sm">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button onclick="app.deleteBank(${bank.id})" class="text-red-400 hover:text-red-300 text-sm">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    updateBankSelectors() {
+        const selectors = ['selected-bank', 'bank-filter'];
+        
+        selectors.forEach(selectorId => {
+            const selector = document.getElementById(selectorId);
+            const currentValue = selector.value;
+            
+            selector.innerHTML = selectorId === 'selected-bank' 
+                ? '<option value="">Select a bank first</option>'
+                : '<option value="all">All Banks</option>';
+            
+            this.tokenBanks.forEach(bank => {
+                selector.innerHTML += `<option value="${bank.id}">${bank.name}</option>`;
+            });
+            
+            if (currentValue) selector.value = currentValue;
+        });
+    }
+
+    selectBank(bankId) {
+        this.selectedBank = bankId;
+        document.getElementById('selected-bank').value = bankId;
+        document.getElementById('bank-filter').value = bankId;
+        this.renderTokens();
+        
+        const bank = this.tokenBanks.find(b => b.id === bankId);
+        document.getElementById('selected-bank-name').textContent = bank ? bank.name : 'None';
+    }
+
+    async deleteBank(bankId) {
+        if (!confirm('Delete this token bank? This will also delete all tokens in it.')) return;
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/api/token-banks/${bankId}`, {
+                method: 'DELETE'
             });
             
             if (response.ok) {
+                // Bank will be removed via WebSocket
+                if (this.selectedBank === bankId) {
+                    this.selectedBank = null;
+                    document.getElementById('selected-bank-name').textContent = 'None';
+                }
+            }
+        } catch (error) {
+            this.addLog('error', `Failed to delete bank: ${error.message}`);
+        }
+    }
+
+    // Token Management
+    async addToken() {
+        const bankId = parseInt(document.getElementById('selected-bank').value);
+        const value = document.getElementById('token-input').value.trim();
+        const tokenId = document.getElementById('token-id').value;
+        
+        if (!bankId || !value) {
+            this.addLog('warning', 'Please select a bank and enter a token value');
+            return;
+        }
+        
+        try {
+            const payload = { bank_id: bankId, value };
+            if (tokenId) payload.token_id = parseInt(tokenId);
+            
+            const response = await fetch(`${this.baseUrl}/api/tokens`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
                 document.getElementById('token-input').value = '';
+                document.getElementById('token-id').value = '';
                 // Token will be added via WebSocket
+            } else {
+                this.addLog('error', result.error || 'Failed to add token');
             }
         } catch (error) {
             this.addLog('error', `Failed to add token: ${error.message}`);
+        }
+    }
+
+    toggleBulkModal() {
+        const modal = document.getElementById('bulk-modal');
+        modal.classList.toggle('hidden');
+    }
+
+    async processBulkTokens() {
+        const bankId = parseInt(document.getElementById('selected-bank').value);
+        const tokensText = document.getElementById('bulk-tokens').value.trim();
+        
+        if (!bankId || !tokensText) {
+            this.addLog('warning', 'Please select a bank and enter tokens');
+            return;
+        }
+        
+        const tokens = tokensText.split('\n').map(t => t.trim()).filter(t => t);
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/api/tokens/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bank_id: bankId, tokens })
+            });
+            
+            if (response.ok) {
+                document.getElementById('bulk-tokens').value = '';
+                this.toggleBulkModal();
+                // Tokens will be added via WebSocket
+            }
+        } catch (error) {
+            this.addLog('error', `Failed to bulk add tokens: ${error.message}`);
         }
     }
 
@@ -176,21 +361,36 @@ class NeuralNetworkBackend {
 
     renderTokens() {
         const container = document.getElementById('tokens-container');
-        const filter = document.getElementById('token-filter').value;
+        const bankFilter = document.getElementById('bank-filter').value;
+        const searchTerm = document.getElementById('token-search').value.toLowerCase();
         
-        const filteredTokens = filter === 'all' 
-            ? this.tokens 
-            : this.tokens.filter(token => token.category === filter);
+        let filteredTokens = this.tokens;
+        
+        // Filter by bank
+        if (bankFilter !== 'all') {
+            filteredTokens = filteredTokens.filter(token => token.bank_id == bankFilter);
+        }
+        
+        // Filter by search term
+        if (searchTerm) {
+            filteredTokens = filteredTokens.filter(token => 
+                token.value.toLowerCase().includes(searchTerm) ||
+                token.bank_name.toLowerCase().includes(searchTerm)
+            );
+        }
         
         container.innerHTML = filteredTokens.map(token => `
-            <div class="flex items-center justify-between p-2 bg-white rounded border hover:bg-gray-50">
+            <div class="flex items-center justify-between p-2 bg-gray-600 rounded border border-gray-500 hover:bg-gray-500 transition-colors">
                 <div class="flex items-center space-x-2">
-                    <span class="px-2 py-1 text-xs rounded-full bg-${this.getCategoryColor(token.category)}-100 text-${this.getCategoryColor(token.category)}-800">
-                        ${token.category}
+                    <span class="px-2 py-1 text-xs rounded-full bg-blue-600 text-blue-100">
+                        ID: ${token.token_id}
                     </span>
-                    <span class="font-mono text-sm">${token.value}</span>
+                    <span class="px-2 py-1 text-xs rounded-full bg-green-600 text-green-100">
+                        ${token.bank_name}
+                    </span>
+                    <span class="font-mono text-sm text-gray-100">${token.value}</span>
                 </div>
-                <button onclick="app.deleteToken(${token.id})" class="text-red-500 hover:text-red-700">
+                <button onclick="app.deleteToken(${token.id})" class="text-red-400 hover:text-red-300">
                     <i class="fas fa-trash text-xs"></i>
                 </button>
             </div>
@@ -199,16 +399,7 @@ class NeuralNetworkBackend {
         document.getElementById('token-count').textContent = filteredTokens.length;
     }
 
-    getCategoryColor(category) {
-        const colors = {
-            general: 'gray',
-            special: 'purple',
-            numeric: 'blue',
-            alphabetic: 'green',
-            punctuation: 'red'
-        };
-        return colors[category] || 'gray';
-    }
+
 
     async deleteToken(tokenId) {
         try {
