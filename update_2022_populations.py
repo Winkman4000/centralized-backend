@@ -1,0 +1,374 @@
+#!/usr/bin/env python3
+"""
+Update 2022 population data in the temporal geography database using CIA World Factbook 2022 estimates.
+"""
+
+import sqlite3
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# CIA World Factbook 2022 population estimates
+POPULATION_2022 = {
+    'China': 1410539758,
+    'India': 1380004385,
+    'United States': 337341954,
+    'Indonesia': 275122131,
+    'Pakistan': 238181034,
+    'Nigeria': 218541212,
+    'Brazil': 215313498,
+    'Bangladesh': 166303498,
+    'Russia': 142021981,
+    'Mexico': 128649565,
+    'Japan': 125124989,
+    'Ethiopia': 114963588,
+    'Philippines': 113880328,
+    'Congo, Democratic Republic of the': 105044646,
+    'Egypt': 106437241,
+    'Vietnam': 98721275,
+    'Iran': 85888910,
+    'Germany': 84316622,
+    'Turkey': 82319724,
+    'Thailand': 69799978,
+    'United Kingdom': 67791400,
+    'Tanzania': 63588334,
+    'France': 68305148,
+    'Italy': 59037474,
+    'South Africa': 59893885,
+    'Myanmar': 54806012,
+    'Kenya': 54027487,
+    'South Korea': 51844834,
+    'Colombia': 51874024,
+    'Spain': 47558630,
+    'Uganda': 47123531,
+    'Argentina': 45376763,
+    'Algeria': 44903225,
+    'Sudan': 46751152,
+    'Ukraine': 43792953,
+    'Iraq': 40462701,
+    'Afghanistan': 38346720,
+    'Poland': 38093101,
+    'Canada': 38232593,
+    'Morocco': 37076584,
+    'Saudi Arabia': 35354617,
+    'Uzbekistan': 30565411,
+    'Peru': 33359418,
+    'Angola': 35027343,
+    'Malaysia': 33519406,
+    'Mozambique': 32077072,
+    'Ghana': 32395450,
+    'Yemen': 30984665,
+    'Nepal': 30424878,
+    'Venezuela': 28301696,
+    'Madagascar': 28427328,
+    'Cameroon': 27744989,
+    'Ivory Coast': 27481086,
+    'North Korea': 25971909,
+    'Australia': 25687041,
+    'Niger': 25252722,
+    'Sri Lanka': 22156000,
+    'Burkina Faso': 21935389,
+    'Mali': 21473764,
+    'Romania': 18326327,
+    'Malawi': 19647684,
+    'Chile': 18307925,
+    'Kazakhstan': 19398331,
+    'Zambia': 19473125,
+    'Guatemala': 17703190,
+    'Ecuador': 17888475,
+    'Syria': 19398448,
+    'Netherlands': 17407585,
+    'Senegal': 17196308,
+    'Cambodia': 16767842,
+    'Chad': 17179740,
+    'Somalia': 16359504,
+    'Zimbabwe': 15121004,
+    'Guinea': 13132795,
+    'Rwanda': 13276513,
+    'Benin': 12996895,
+    'Burundi': 12551213,
+    'Tunisia': 11818619,
+    'Bolivia': 11832940,
+    'Belgium': 11720716,
+    'Haiti': 11680283,
+    'Cuba': 11317505,
+    'South Sudan': 10748272,
+    'Dominican Republic': 10953703,
+    'Czech Republic': 10493986,
+    'Greece': 10432481,
+    'Jordan': 10820644,
+    'Portugal': 10247605,
+    'Azerbaijan': 10358074,
+    'Sweden': 10536632,
+    'Honduras': 10278345,
+    'United Arab Emirates': 9441129,
+    'Hungary': 9676135,
+    'Tajikistan': 9750065,
+    'Belarus': 9432800,
+    'Austria': 8939617,
+    'Papua New Guinea': 9119010,
+    'Serbia': 8697550,
+    'Israel': 8922892,
+    'Switzerland': 8796669,
+    'Togo': 8644829,
+    'Sierra Leone': 8605718,
+    'Hong Kong': 7491609,
+    'Laos': 7529475,
+    'Paraguay': 7272639,
+    'Bulgaria': 6687717,
+    'Libya': 6812341,
+    'Lebanon': 5489739,
+    'Nicaragua': 6850540,
+    'Kyrgyzstan': 6735347,
+    'El Salvador': 6364943,
+    'Turkmenistan': 6031187,
+    'Singapore': 5975689,
+    'Denmark': 5910913,
+    'Finland': 5545475,
+    'Congo': 5797805,
+    'Slovakia': 5428704,
+    'Norway': 5474360,
+    'Oman': 5323993,
+    'State of Palestine': 5250072,
+    'Costa Rica': 5180829,
+    'Liberia': 5302681,
+    'Ireland': 5020199,
+    'Central African Republic': 5357744,
+    'New Zealand': 5228100,
+    'Mauritania': 4736139,
+    'Panama': 4351267,
+    'Kuwait': 4310108,
+    'Croatia': 3853200,
+    'Moldova': 2573928,
+    'Georgia': 3728282,
+    'Eritrea': 3748901,
+    'Uruguay': 3423108,
+    'Bosnia and Herzegovina': 3164253,
+    'Mongolia': 3398366,
+    'Armenia': 2777970,
+    'Jamaica': 2825544,
+    'Qatar': 2695122,
+    'Albania': 2832439,
+    'Puerto Rico': 3252407,
+    'Lithuania': 2718352,
+    'Namibia': 2604172,
+    'Gambia': 2639916,
+    'Botswana': 2417596,
+    'Gabon': 2388992,
+    'Lesotho': 2142252,
+    'North Macedonia': 2085679,
+    'Slovenia': 2119675,
+    'Guinea-Bissau': 2105566,
+    'Latvia': 1883008,
+    'Bahrain': 1748296,
+    'Equatorial Guinea': 1496662,
+    'Trinidad and Tobago': 1405646,
+    'Estonia': 1322765,
+    'East Timor': 1360596,
+    'Mauritius': 1299469,
+    'Cyprus': 1244188,
+    'Eswatini': 1201670,
+    'Djibouti': 1120849,
+    'Fiji': 924610,
+    'Reunion': 868846,
+    'Comoros': 888451,
+    'Guyana': 804567,
+    'Bhutan': 782318,
+    'Solomon Islands': 740424,
+    'Macao': 695168,
+    'Montenegro': 627082,
+    'Western Sahara': 652271,
+    'Luxembourg': 640064,
+    'Suriname': 612985,
+    'Cape Verde': 598682,
+    'Maldives': 540985,
+    'Malta': 535064,
+    'Brunei': 449002,
+    'Guadeloupe': 395700,
+    'Belize': 405272,
+    'Bahamas': 412623,
+    'Martinique': 366981,
+    'Iceland': 375318,
+    'Vanuatu': 334506,
+    'French Polynesia': 306279,
+    'Barbados': 281635,
+    'New Caledonia': 290915,
+    'French Guiana': 312155,
+    'Mayotte': 320081,
+    'Sao Tome and Principe': 227679,
+    'Samoa': 205557,
+    'Saint Lucia': 180251,
+    'Channel Islands': 176463,
+    'Guam': 172952,
+    'Curacao': 191163,
+    'Kiribati': 131232,
+    'Micronesia': 113131,
+    'Grenada': 124610,
+    'Saint Vincent and the Grenadines': 103948,
+    'Aruba': 106445,
+    'Tonga': 108020,
+    'United States Virgin Islands': 99465,
+    'Seychelles': 107660,
+    'Antigua and Barbuda': 93219,
+    'Isle of Man': 84710,
+    'Andorra': 79824,
+    'Dominica': 73897,
+    'Cayman Islands': 69310,
+    'Bermuda': 64069,
+    'Marshall Islands': 42418,
+    'Northern Mariana Islands': 49796,
+    'Greenland': 56661,
+    'American Samoa': 45443,
+    'Saint Kitts and Nevis': 47755,
+    'Faroe Islands': 53270,
+    'Sint Maarten': 44222,
+    'Monaco': 36686,
+    'Turks and Caicos Islands': 46062,
+    'Saint Martin': 32358,
+    'Liechtenstein': 39327,
+    'San Marino': 33644,
+    'Gibraltar': 29461,
+    'British Virgin Islands': 31122,
+    'Cook Islands': 17565,
+    'Palau': 18055,
+    'Nauru': 12668,
+    'Wallis and Futuna': 11369,
+    'Anguilla': 15857,
+    'Tuvalu': 11204,
+    'Saint Barthelemy': 7122,
+    'Saint Helena': 7925,
+    'Saint Pierre and Miquelon': 5840,
+    'Montserrat': 4649,
+    'Falkland Islands': 3198,
+    'Norfolk Island': 1748,
+    'Christmas Island': 1692,
+    'Tokelau': 1893,
+    'Niue': 1934,
+    'Vatican City': 825,
+    'Cocos Islands': 596,
+    'Pitcairn Islands': 50,
+    # Uninhabited territories
+    'Antarctica': 0,
+    'Bouvet Island': 0,
+    'French Southern Territories': 0,
+    'Heard Island and McDonald Islands': 0,
+    'South Georgia and the South Sandwich Islands': 0,
+    'British Indian Ocean Territory': 0,
+    'United States Minor Outlying Islands': 0
+}
+
+def update_2022_populations():
+    """Update 2022 population data in the temporal database."""
+    try:
+        # Connect to temporal database
+        conn = sqlite3.connect('geography_temporal.db')
+        cursor = conn.cursor()
+        
+        logger.info("Starting 2022 population data update...")
+        
+        updated_count = 0
+        not_found_count = 0
+        not_found_countries = []
+        
+        for country_name, population in POPULATION_2022.items():
+            # Try to find and update the country
+            cursor.execute("""
+                UPDATE countries_temporal 
+                SET population = ? 
+                WHERE year = 2022 AND name = ?
+            """, (population, country_name))
+            
+            if cursor.rowcount > 0:
+                updated_count += 1
+                logger.info(f"Updated {country_name}: {population:,}")
+            else:
+                # Try alternative names
+                alternatives = get_alternative_names(country_name)
+                found = False
+                for alt_name in alternatives:
+                    cursor.execute("""
+                        UPDATE countries_temporal 
+                        SET population = ? 
+                        WHERE year = 2022 AND name = ?
+                    """, (population, alt_name))
+                    
+                    if cursor.rowcount > 0:
+                        updated_count += 1
+                        logger.info(f"Updated {alt_name} (searched as {country_name}): {population:,}")
+                        found = True
+                        break
+                
+                if not found:
+                    not_found_count += 1
+                    not_found_countries.append(country_name)
+                    logger.warning(f"Country not found: {country_name}")
+        
+        # Commit changes
+        conn.commit()
+        
+        # Print summary
+        logger.info(f"\n2022 Population Update Summary:")
+        logger.info(f"Successfully updated: {updated_count} countries")
+        logger.info(f"Not found: {not_found_count} countries")
+        
+        if not_found_countries:
+            logger.info(f"Countries not found: {', '.join(not_found_countries)}")
+        
+        # Show total population for 2022
+        cursor.execute("""
+            SELECT COUNT(*) as total_countries,
+                   COUNT(CASE WHEN population IS NOT NULL AND population > 0 THEN 1 END) as with_population,
+                   SUM(CASE WHEN population IS NOT NULL THEN population ELSE 0 END) as total_population
+            FROM countries_temporal 
+            WHERE year = 2022
+        """)
+        
+        result = cursor.fetchone()
+        total_countries, with_population, total_population = result
+        
+        logger.info(f"\n2022 Database Status:")
+        logger.info(f"Total countries: {total_countries}")
+        logger.info(f"Countries with population: {with_population}")
+        logger.info(f"Coverage: {(with_population/total_countries)*100:.1f}%")
+        logger.info(f"Total world population: {total_population:,}")
+        
+        conn.close()
+        
+    except Exception as e:
+        logger.error(f"Error updating 2022 populations: {e}")
+        raise
+
+def get_alternative_names(country_name):
+    """Get alternative names for countries that might be stored differently."""
+    alternatives = {
+        'United States': ['United States of America', 'USA'],
+        'United Kingdom': ['United Kingdom of Great Britain and Northern Ireland', 'UK'],
+        'Congo, Democratic Republic of the': ['Democratic Republic of the Congo', 'Congo (Democratic Republic)', 'DRC'],
+        'Congo': ['Republic of the Congo', 'Congo (Republic)'],
+        'North Korea': ['Democratic People\'s Republic of Korea', 'Korea, North'],
+        'South Korea': ['Republic of Korea', 'Korea, South'],
+        'Russia': ['Russian Federation'],
+        'Iran': ['Islamic Republic of Iran'],
+        'Syria': ['Syrian Arab Republic'],
+        'Venezuela': ['Bolivarian Republic of Venezuela'],
+        'Bolivia': ['Plurinational State of Bolivia'],
+        'Tanzania': ['United Republic of Tanzania'],
+        'Moldova': ['Republic of Moldova'],
+        'North Macedonia': ['Macedonia', 'Former Yugoslav Republic of Macedonia'],
+        'Eswatini': ['Swaziland'],
+        'East Timor': ['Timor-Leste'],
+        'State of Palestine': ['Palestine'],
+        'Vatican City': ['Holy See'],
+        'Ivory Coast': ['Cote d\'Ivoire'],
+        'Cape Verde': ['Cabo Verde'],
+        'Myanmar': ['Burma'],
+        'Czechia': ['Czech Republic'],
+        'Channel Islands': ['Jersey', 'Guernsey']
+    }
+    
+    return alternatives.get(country_name, [])
+
+if __name__ == "__main__":
+    update_2022_populations() 
